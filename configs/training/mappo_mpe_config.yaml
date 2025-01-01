@@ -1,0 +1,38 @@
+# Experiment configuration
+experiment_name: "mappo_mpe_adversary"
+output_dir: "experiments"
+
+# Environment configuration
+environment:
+  type: "mpe"
+  scenario: "simple_adversary"
+  num_agents: 4  # 3 good agents, 1 adversary
+  max_cycles: 100
+
+# Algorithm configuration
+algorithm:
+  type: "mappo"
+  n_agents: 4
+  obs_dim: 16
+  state_dim: 64
+  action_dim: 5
+  hidden_dim: 64
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_param: 0.2
+  value_loss_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  ppo_epoch: 10
+  mini_batch_size: 64
+
+# Training configuration
+max_steps: 1000000
+eval_interval: 10000
+save_interval: 50000
+log_interval: 1000
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

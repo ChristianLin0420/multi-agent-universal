@@ -1,0 +1,27 @@
+# Evaluation configuration for MPE
+experiment_name: "mpe_evaluation"
+output_dir: "evaluation_results"
+
+# Environment configuration
+environment:
+  type: "mpe"
+  scenario: "simple_spread"
+  num_agents: 3
+  max_cycles: 100
+
+# Evaluation parameters
+n_episodes: 100
+render: true
+save_videos: true
+video_dir: "evaluation_results/videos"
+
+# Metrics to track
+metrics:
+  - "average_episode_reward"
+  - "min_agent_distance"
+  - "collision_rate"
+  - "average_coverage"
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

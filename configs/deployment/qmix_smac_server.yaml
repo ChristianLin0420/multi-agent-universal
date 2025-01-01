@@ -1,0 +1,22 @@
+# Server configuration
+host: "0.0.0.0"
+port: 8000
+
+# Algorithm configuration
+algorithm:
+  type: "qmix"
+  n_agents: 3
+  obs_dim: 30
+  state_dim: 100
+  n_actions: 9
+  hidden_dim: 64
+  gamma: 0.99
+  epsilon: 0.0  # No exploration during deployment
+
+# Model checkpoint
+model_checkpoint: "experiments/qmix_smac_3m/checkpoint_best.pt"
+
+# Server settings
+batch_size: 32
+timeout: 30
+workers: 4 

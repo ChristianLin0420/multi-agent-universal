@@ -1,0 +1,21 @@
+# Server configuration
+host: "0.0.0.0"
+port: 8001
+
+# Algorithm configuration
+algorithm:
+  type: "mappo"
+  n_agents: 3
+  obs_dim: 30
+  state_dim: 115
+  action_dim: 19
+  hidden_dim: 64
+  gamma: 0.99
+
+# Model checkpoint
+model_checkpoint: "experiments/mappo_football_3v1/checkpoint_best.pt"
+
+# Server settings
+batch_size: 16
+timeout: 30
+workers: 4 

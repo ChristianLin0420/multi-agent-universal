@@ -1,0 +1,28 @@
+# Evaluation configuration for Google Football
+experiment_name: "football_evaluation"
+output_dir: "evaluation_results"
+
+# Environment configuration
+environment:
+  type: "football"
+  scenario_name: "academy_3_vs_1_with_keeper"
+  number_of_left_players: 3
+  number_of_right_players: 1
+  render: true
+
+# Evaluation parameters
+n_episodes: 50
+save_videos: true
+video_dir: "evaluation_results/videos"
+
+# Metrics to track
+metrics:
+  - "score_rate"
+  - "average_episode_reward"
+  - "average_episode_length"
+  - "goals_scored"
+  - "possession_rate"
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

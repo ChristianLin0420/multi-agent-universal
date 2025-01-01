@@ -1,0 +1,27 @@
+# Evaluation configuration for SMAC
+experiment_name: "smac_evaluation"
+output_dir: "evaluation_results"
+
+# Environment configuration
+environment:
+  type: "smac"
+  map_name: "3m"
+  difficulty: "7"
+  reward_sparse: false
+
+# Evaluation parameters
+n_episodes: 100
+render: true
+save_videos: true
+video_dir: "evaluation_results/videos"
+
+# Metrics to track
+metrics:
+  - "win_rate"
+  - "average_episode_reward"
+  - "average_episode_length"
+  - "battle_won"
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

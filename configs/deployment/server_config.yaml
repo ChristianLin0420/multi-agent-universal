@@ -1,0 +1,16 @@
+# Server configuration
+host: "0.0.0.0"
+port: 8000
+
+# Algorithm configuration
+algorithm:
+  type: "qmix"  # or "mappo"
+  n_agents: 3
+  obs_dim: 30
+  state_dim: 100
+  action_dim: 19
+  hidden_dim: 64
+  # Add other algorithm-specific parameters here
+
+# Model checkpoint
+model_checkpoint: "experiments/football_3v1/checkpoint_best.pt" 

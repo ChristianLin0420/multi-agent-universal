@@ -1,0 +1,39 @@
+# Experiment configuration
+experiment_name: "mappo_football_3v1"
+output_dir: "experiments"
+
+# Environment configuration
+environment:
+  type: "football"
+  scenario_name: "academy_3_vs_1_with_keeper"
+  number_of_left_players: 3
+  number_of_right_players: 1
+  render: false
+
+# Algorithm configuration
+algorithm:
+  type: "mappo"
+  n_agents: 3
+  obs_dim: 30
+  state_dim: 115
+  action_dim: 19
+  hidden_dim: 64
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_param: 0.2
+  value_loss_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  ppo_epoch: 10
+  mini_batch_size: 64
+
+# Training configuration
+max_steps: 2000000
+eval_interval: 20000
+save_interval: 100000
+log_interval: 2000
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

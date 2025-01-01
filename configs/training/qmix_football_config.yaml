@@ -1,0 +1,34 @@
+# Experiment configuration
+experiment_name: "qmix_football_5v5"
+output_dir: "experiments"
+
+# Environment configuration
+environment:
+  type: "football"
+  scenario_name: "5_vs_5"
+  number_of_left_players: 5
+  number_of_right_players: 5
+  render: false
+
+# Algorithm configuration
+algorithm:
+  type: "qmix"
+  n_agents: 5
+  obs_dim: 40
+  state_dim: 200
+  n_actions: 19
+  hidden_dim: 128
+  gamma: 0.99
+  lr: 0.0007
+  target_update_interval: 200
+  epsilon: 0.2
+
+# Training configuration
+max_steps: 5000000
+eval_interval: 50000
+save_interval: 200000
+log_interval: 2000
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

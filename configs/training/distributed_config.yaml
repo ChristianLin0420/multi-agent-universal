@@ -1,0 +1,20 @@
+# Distributed training configuration
+world_size: 4
+backend: "nccl"
+init_method: "tcp://localhost:23456"
+
+# GPU configuration
+cuda_visible_devices: "0,1,2,3"
+master_port: 23456
+
+# Synchronization
+sync_batch_norm: true
+find_unused_parameters: false
+
+# Optimization
+gradient_accumulation_steps: 1
+clip_grad_norm: 1.0
+
+# Communication
+broadcast_buffers: false
+bucket_cap_mb: 25 

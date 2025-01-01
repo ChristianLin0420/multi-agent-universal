@@ -1,0 +1,33 @@
+# Experiment configuration
+experiment_name: "qmix_smac_3m"
+output_dir: "experiments"
+
+# Environment configuration
+environment:
+  type: "smac"
+  map_name: "3m"
+  difficulty: "7"
+  reward_sparse: false
+
+# Algorithm configuration
+algorithm:
+  type: "qmix"
+  n_agents: 3
+  obs_dim: 30
+  state_dim: 100
+  n_actions: 9
+  hidden_dim: 64
+  gamma: 0.99
+  lr: 0.001
+  target_update_interval: 200
+  epsilon: 0.1
+
+# Training configuration
+max_steps: 1000000
+eval_interval: 10000
+save_interval: 50000
+log_interval: 1000
+
+# Logging configuration
+use_wandb: true
+wandb_project: "marl_framework" 

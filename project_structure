@@ -1,0 +1,35 @@
+marl_framework/
+├── algorithms/
+│   ├── __init__.py
+│   ├── base.py
+│   ├── qmix/
+│   └── mappo/
+├── environments/
+│   ├── __init__.py
+│   ├── base.py
+│   ├── smac/
+│   ├── google_football/
+│   └── mpe/
+├── training/
+│   ├── __init__.py
+│   ├── trainer.py
+│   └── distributed/
+├── evaluation/
+│   ├── __init__.py
+│   └── evaluator.py
+├── utils/
+│   ├── __init__.py
+│   ├── config.py
+│   └── logger.py
+├── deployment/
+│   ├── __init__.py
+│   └── server.py
+├── scripts/
+│   ├── train.py
+│   ├── evaluate.py
+│   └── deploy.py
+├── configs/
+│   ├── algorithms/
+│   └── environments/
+├── requirements.txt
+└── README.md 
