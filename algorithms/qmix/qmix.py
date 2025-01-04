@@ -2,12 +2,12 @@ import torch
 import torch.nn.functional as F
 from typing import Dict, Any, Tuple, List
 import numpy as np
+import torch.nn as nn
 
 from ..base import MARLAlgorithm
 from .networks import QNetwork
 from .mixer import QMixer
 from ..common.buffer import Buffer
-from ...utils.config import Config
 
 class QMIX(MARLAlgorithm):
     """QMIX algorithm implementation."""
@@ -35,9 +35,14 @@ class QMIX(MARLAlgorithm):
         # Initialize networks
         self._setup_networks()
         
+        # Buffer parameters
+        self.buffer_size = config.get("buffer_size", 5000)
+        self.batch_size = config.get("batch_size", 32)
+        self.min_samples = config.get("min_samples", 1000)  # Minimum samples before updating
+        self.train_steps = 0
+        
         # Initialize buffer
-        buffer_size = config.get("buffer_size", 5000)
-        self.buffer = Buffer(buffer_size, self.n_agents, is_episodic=False)
+        self.buffer = Buffer(self.buffer_size, self.n_agents, is_episodic=False)
         
         # Initialize optimizer
         self.optimizer = torch.optim.Adam(
@@ -45,6 +50,11 @@ class QMIX(MARLAlgorithm):
             list(self.mixer.parameters()), 
             lr=self.lr
         )
+
+        # Device setting
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        self.agent_ids = list(range(self.n_agents))
     
     def _setup_networks(self):
         """Initialize Q-networks and mixer network."""
@@ -79,7 +89,8 @@ class QMIX(MARLAlgorithm):
     def select_actions(self, 
                       observations: Dict[str, np.ndarray],
                       agent_ids: List[str],
-                      explore: bool = True) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+                      explore: bool = True,
+                      evalutate_mode: bool = False) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         """Select actions using epsilon-greedy policy."""
         actions = {}
         q_values = {}
@@ -100,12 +111,15 @@ class QMIX(MARLAlgorithm):
         
         return actions, {"q_values": q_values}
     
-    def update(self, batch: Dict[str, Any]) -> Dict[str, float]:
+    def update(self) -> Dict[str, float]:
         """Update QMIX networks."""
+        # Sample batch from buffer
+        batch = self.buffer.sample(self.batch_size)
+        
         # Convert batch to tensors
-        obs = {k: v.to(self.device) for k, v in batch["observations"].items()}
-        next_obs = {k: v.to(self.device) for k, v in batch["next_observations"].items()}
-        actions = {k: v.to(self.device) for k, v in batch["actions"].items()}
+        obs = batch["observations"].to(self.device)
+        next_obs = batch["next_observations"].to(self.device) 
+        actions = batch["actions"].to(self.device)
         rewards = batch["rewards"].to(self.device)
         dones = batch["dones"].to(self.device)
         states = batch["states"].to(self.device)
@@ -113,9 +127,9 @@ class QMIX(MARLAlgorithm):
         
         # Compute current Q-values
         current_q_values = []
-        for i, agent_id in enumerate(obs.keys()):
-            q_values = self.q_networks[i](obs[agent_id])
-            q_value = q_values.gather(1, actions[agent_id].unsqueeze(1))
+        for i in range(self.n_agents):
+            q_values = self.q_networks[i](obs[:, i])
+            q_value = q_values.gather(1, actions[:, i].unsqueeze(1))
             current_q_values.append(q_value)
         
         current_q_values = torch.cat(current_q_values, dim=1)
@@ -125,8 +139,8 @@ class QMIX(MARLAlgorithm):
         
         # Compute target Q-values
         target_q_values = []
-        for i, agent_id in enumerate(next_obs.keys()):
-            target_q = self.target_q_networks[i](next_obs[agent_id])
+        for i in range(self.n_agents):
+            target_q = self.target_q_networks[i](next_obs[:, i])
             target_q_values.append(target_q.max(1, keepdim=True)[0])
         
         target_q_values = torch.cat(target_q_values, dim=1)
@@ -195,3 +209,92 @@ class QMIX(MARLAlgorithm):
         self.target_mixer.load_state_dict(checkpoint['target_mixer'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.train_steps = checkpoint['train_steps'] 
+    
+    def store_transition(
+        self,
+        observations: Dict[str, np.ndarray],
+        actions: Dict[str, np.ndarray],
+        rewards: Dict[str, float],
+        next_observations: Dict[str, np.ndarray],
+        dones: Dict[str, bool],
+        info: Dict[str, Any]
+    ) -> None:
+        """Store transition in replay buffer.
+        
+        Args:
+            observations (Dict[str, np.ndarray]): Current observations
+            actions (Dict[str, np.ndarray]): Actions taken
+            rewards (Dict[str, float]): Rewards received
+            next_observations (Dict[str, np.ndarray]): Next observations
+            dones (Dict[str, bool]): Done flags
+            info (Dict[str, Any]): Additional information
+        """
+        # Convert observations to tensor format
+        obs_tensor = torch.stack([
+            torch.FloatTensor(observation)
+            for observation in observations.values()
+        ])
+        
+        # Convert next observations to tensor format
+        next_obs_tensor = torch.stack([
+            torch.FloatTensor(observation)
+            for observation in next_observations.values()
+        ])
+        
+        # Convert actions to tensor format
+        actions_tensor = torch.stack([
+            torch.tensor(action, dtype=torch.int64)
+            for action in actions.values()
+        ])
+        
+        # Convert rewards to tensor format
+        rewards_tensor = torch.stack([
+            torch.FloatTensor([reward])
+            for reward in rewards.values()
+        ]).squeeze()
+        
+        # Convert dones to tensor format
+        dones_tensor = torch.stack([
+            torch.BoolTensor([done])
+            for done in dones.values()
+        ]).squeeze()
+        
+        # Get state information if available
+        state = info.get("state", None)
+        next_state = info.get("next_state", None)
+        
+        if state is None:
+            # If state is not provided, use concatenated observations
+            state = obs_tensor.reshape(-1).numpy()
+            next_state = next_obs_tensor.reshape(-1).numpy()
+        
+        state_tensor = torch.FloatTensor(state)
+        next_state_tensor = torch.FloatTensor(next_state)
+        
+        # Store in buffer
+        self.buffer.push(
+            observations=obs_tensor,
+            actions=actions_tensor,
+            rewards=rewards_tensor,
+            next_observations=next_obs_tensor,
+            dones=dones_tensor,
+            states=state_tensor,
+            next_states=next_state_tensor
+        ) 
+    
+    def ready_to_update(self) -> bool:
+        """Check if enough samples are available for updating.
+        
+        Returns:
+            bool: True if enough samples are available, False otherwise
+        """
+        return len(self.buffer) >= self.min_samples 
+    
+    def eval(self) -> None:
+        """Set networks to evaluation mode."""
+        for q_net in self.q_networks:
+            q_net.eval()
+        self.mixer.eval()
+        self.target_mixer.eval()
+        for target_q_net in self.target_q_networks:
+            target_q_net.eval() 

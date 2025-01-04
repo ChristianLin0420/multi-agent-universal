@@ -2,20 +2,17 @@ import torch
 import numpy as np
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-import time
 import json
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import datetime
 import pandas as pd
 from tqdm import tqdm
 import wandb
-import cv2
 
-from ..algorithms.base import MARLAlgorithm
-from ..environments.base import MARLEnvironment
-from ..utils.logger import Logger
-from ..utils.visualization import plot_episode_metrics, create_video
+from algorithms.base import MARLAlgorithm
+from environments.base import MARLEnvironment
+from utils.logger import Logger
+from utils.visualization import create_video
 
 class Evaluator:
     """Evaluation pipeline for MARL algorithms."""
@@ -125,10 +122,9 @@ class Evaluator:
         
         episode_rewards = []
         episode_lengths = []
-        frames_buffer = []
         
         for episode in tqdm(range(self.n_episodes), desc="Evaluating"):
-            obs, info = self.env.reset()
+            obs, _ = self.env.reset()
             episode_reward = 0
             episode_length = 0
             episode_frames = []
@@ -144,7 +140,8 @@ class Evaluator:
                     actions, action_info = self.algorithm.select_actions(
                         observations=obs,
                         agent_ids=self.env.agent_ids,
-                        explore=False
+                        explore=False,
+                        evalutate_mode=True
                     )
                 
                 # Record trajectory
@@ -156,7 +153,7 @@ class Evaluator:
                     })
                 
                 # Execute actions
-                next_obs, rewards, dones, step_info = self.env.step(actions)
+                next_obs, rewards, truncateds, dones, step_info = self.env.step(actions)
                 
                 episode_reward += sum(rewards.values())
                 episode_length += 1
@@ -164,7 +161,7 @@ class Evaluator:
                 # Update metrics
                 self._update_metrics(step_info)
                 
-                if any(dones.values()):
+                if any(dones.values()) or any(truncateds.values()):
                     break
                 
                 obs = next_obs
@@ -188,9 +185,9 @@ class Evaluator:
             self.logger.log_metrics({
                 "eval_episode": episode,
                 "eval_episode_reward": episode_reward,
-                "eval_episode_length": episode_length,
-                **{f"eval_{k}": v[-1] for k, v in self.custom_metrics.items()}
-            })
+                "eval_episode_length": episode_length
+                # **{f"eval_{k}": v[-1] for k, v in self.custom_metrics.items()}
+            }, step=episode, metric_type='eval')
         
         # Compute aggregate metrics
         metrics = self._compute_aggregate_metrics(episode_rewards, episode_lengths)

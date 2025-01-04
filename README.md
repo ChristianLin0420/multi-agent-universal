@@ -1,4 +1,4 @@
-# MARL Framework 🤖
+# Multi-Agent-Universal 🤖
 
 > A comprehensive Multi-Agent Reinforcement Learning framework for research and development, featuring distributed training and multiple environment support.
 
@@ -144,7 +144,7 @@ Our installation process is streamlined to get you started quickly while ensurin
 ```bash
 # Clone repository
 git clone https://github.com/username/marl_framework.git
-cd marl_framework
+cd multi-agent-universal
 
 # Create virtual environment
 python -m venv venv
@@ -156,7 +156,7 @@ source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 
 # Install environment dependencies
-bash scripts/install_environments.sh
+bash install_environments.sh
 ```
 
 ## 🚀 Quick Start

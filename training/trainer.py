@@ -1,20 +1,15 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import torch
-import numpy as np
 from pathlib import Path
-import time
-from datetime import datetime
 import wandb
 from tqdm import tqdm
 import json
-import logging
-import os
 import shutil
 
-from ..algorithms.base import MARLAlgorithm
-from ..environments.base import MARLEnvironment
-from ..utils.logger import Logger
-from ..evaluation.evaluator import Evaluator
+from algorithms.base import MARLAlgorithm
+from environments.base import MARLEnvironment
+from utils.logger import Logger
+from evaluation.evaluator import Evaluator
 
 class Trainer:
     """Base trainer for MARL algorithms."""
@@ -122,7 +117,6 @@ class Trainer:
             'episode': episode,
             'total_steps': self.total_steps,
             'best_reward': self.best_reward,
-            'algorithm_state': self.algorithm.state_dict(),
             'training_metrics': self.training_metrics
         }
         
@@ -185,7 +179,7 @@ class Trainer:
             )
             
             # Execute actions
-            next_obs, rewards, dones, step_info = self.env.step(actions)
+            next_obs, rewards, truncateds, dones, step_info = self.env.step(actions)
             
             # Store experience
             self.algorithm.store_transition(
@@ -201,7 +195,7 @@ class Trainer:
                 update_info = self.algorithm.update()
                 episode_metrics.update(update_info)
             
-            if any(dones.values()) or episode_length >= self.max_steps:
+            if any(dones.values()) or any(truncateds.values()) or episode_length >= self.max_steps:
                 break
             
             obs = next_obs

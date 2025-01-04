@@ -26,10 +26,7 @@ class MPEEnvironment(MARLEnvironment):
                 - render_mode (str): Rendering mode ('human', 'rgb_array', None)
                 - seed (int): Random seed
                 - local_ratio (float): Ratio for local reward vs global reward
-                - max_distance (float): Maximum distance for reward calculation
-                - observation_radius (float): Radius for agent observations
-                - collision_penalty (float): Penalty for agent collisions
-                - shared_viewer (bool): Use shared viewer for rendering
+                # No additional parameters needed for MPE scenarios
         """
         super().__init__(config)
         
@@ -43,10 +40,6 @@ class MPEEnvironment(MARLEnvironment):
         
         # Scenario-specific parameters
         self.local_ratio = config.get("local_ratio", 0.5)
-        self.max_distance = config.get("max_distance", 1.0)
-        self.observation_radius = config.get("observation_radius", 1.0)
-        self.collision_penalty = config.get("collision_penalty", 0.0)
-        self.shared_viewer = config.get("shared_viewer", True)
         
         # Validate scenario
         if self.scenario not in SUPPORTED_SCENARIOS:
@@ -60,11 +53,7 @@ class MPEEnvironment(MARLEnvironment):
             max_cycles=self.max_cycles,
             continuous_actions=self.continuous_actions,
             render_mode=self.render_mode,
-            local_ratio=self.local_ratio,
-            max_distance=self.max_distance,
-            observation_radius=self.observation_radius,
-            collision_penalty=self.collision_penalty,
-            shared_viewer=self.shared_viewer
+            local_ratio=self.local_ratio
         )
         
         if self.seed is not None:
@@ -75,7 +64,6 @@ class MPEEnvironment(MARLEnvironment):
         
         # Set up agent IDs
         self.agent_ids = list(self.env.agents)
-        
         # Cache spaces
         self._setup_spaces()
         
@@ -83,8 +71,6 @@ class MPEEnvironment(MARLEnvironment):
         self.episode_steps = 0
         self.episode_rewards = []
         self.collision_count = 0
-        self.min_agent_distance = float('inf')
-        self.coverage_score = 0.0
     
     def _setup_spaces(self):
         """Setup observation and action spaces."""
@@ -113,79 +99,20 @@ class MPEEnvironment(MARLEnvironment):
                     "dtype": np.float32
                 }
     
-    def _compute_metrics(self) -> Dict[str, float]:
-        """Compute environment-specific metrics.
-        
-        Returns:
-            Dict[str, float]: Dictionary of metrics
-        """
-        metrics = {
-            "collision_count": self.collision_count,
-            "min_agent_distance": self.min_agent_distance,
-            "coverage_score": self.coverage_score,
-            "episode_length": self.episode_steps,
-            "average_reward": np.mean(self.episode_rewards) if self.episode_rewards else 0.0
-        }
-        
-        if self.scenario == "simple_spread":
-            # Add scenario-specific metrics
-            metrics.update(self._compute_spread_metrics())
-        elif self.scenario == "simple_adversary":
-            metrics.update(self._compute_adversary_metrics())
-        
-        return metrics
-    
-    def _compute_spread_metrics(self) -> Dict[str, float]:
-        """Compute metrics specific to simple_spread scenario."""
-        # Get agent positions
-        positions = [self.env.get_agent_state(i)[:2] for i in range(self.num_agents)]
-        positions = np.array(positions)
-        
-        # Compute minimum distance between agents
-        distances = []
-        for i in range(self.num_agents):
-            for j in range(i + 1, self.num_agents):
-                dist = np.linalg.norm(positions[i] - positions[j])
-                distances.append(dist)
-        
-        min_distance = min(distances) if distances else float('inf')
-        self.min_agent_distance = min(self.min_agent_distance, min_distance)
-        
-        # Compute coverage
-        x_coords = positions[:, 0]
-        y_coords = positions[:, 1]
-        coverage_area = (max(x_coords) - min(x_coords)) * (max(y_coords) - min(y_coords))
-        self.coverage_score = coverage_area
-        
-        return {
-            "current_min_distance": min_distance,
-            "current_coverage": coverage_area
-        }
-    
-    def _compute_adversary_metrics(self) -> Dict[str, float]:
-        """Compute metrics specific to simple_adversary scenario."""
-        return {
-            "adversary_reward": self.episode_rewards[-1] if self.episode_rewards else 0.0,
-            "good_agent_reward": np.mean([r for r in self.episode_rewards[:-1]]) if self.episode_rewards else 0.0
-        }
-    
     def reset(self) -> Tuple[Dict[str, np.ndarray], Dict]:
         """Reset the environment.
         
         Returns:
             Tuple[Dict[str, np.ndarray], Dict]: Initial observations and info
         """
-        observations = self.env.reset()
+        observations, _ = self.env.reset()
         
         self.episode_steps = 0
         self.episode_rewards = []
         self.collision_count = 0
-        self.min_agent_distance = float('inf')
-        self.coverage_score = 0.0
         
         info = {
             "episode_steps": 0,
-            "metrics": self._compute_metrics(),
             "scenario": self.scenario,
             "num_agents": self.num_agents
         }
@@ -195,6 +122,7 @@ class MPEEnvironment(MARLEnvironment):
     def step(self, actions: Dict[str, np.ndarray]) -> Tuple[
         Dict[str, np.ndarray],  # observations
         Dict[str, float],       # rewards
+        Dict[str, bool],        # truncateds
         Dict[str, bool],        # dones
         Dict                    # info
     ]:
@@ -206,7 +134,7 @@ class MPEEnvironment(MARLEnvironment):
         Returns:
             Tuple containing observations, rewards, dones, and info
         """
-        observations, rewards, dones, infos = self.env.step(actions)
+        observations, rewards, dones, truncateds, infos = self.env.step(actions)
         
         # Update episode info
         self.episode_steps += 1
@@ -217,20 +145,14 @@ class MPEEnvironment(MARLEnvironment):
             if info.get("collision", False):
                 self.collision_count += 1
         
-        # Compute current metrics
-        metrics = self._compute_metrics()
-        
         # Compile info
         info = {
             "episode_steps": self.episode_steps,
-            "metrics": metrics,
             "collisions": self.collision_count,
-            "min_agent_distance": self.min_agent_distance,
-            "coverage_score": self.coverage_score
         }
         info.update(infos)
         
-        return observations, rewards, dones, info
+        return observations, rewards, truncateds, dones, info
     
     def render(self) -> np.ndarray:
         """Render the environment.
@@ -251,3 +173,88 @@ class MPEEnvironment(MARLEnvironment):
     @property
     def action_space(self) -> Dict[str, Any]:
         return self._action_space 
+
+    def _compute_metrics(self) -> Dict[str, float]:
+        """Compute environment-specific metrics.
+        
+        Returns:
+            Dict[str, float]: Dictionary of metrics
+        """
+        # Get agent positions
+        agent_positions = []
+        for agent_id in self.agent_ids:
+            obs = self.env.observe(agent_id)
+            # Extract position from observation (first 2 values are x,y coordinates)
+            pos = obs[:2]
+            agent_positions.append(pos)
+        
+        agent_positions = np.array(agent_positions)
+        
+        # Compute metrics
+        metrics = {
+            "collision_rate": self._compute_collision_rate(),
+            "min_agent_distance": self._compute_min_agent_distance(agent_positions),
+            "coverage_score": self._compute_coverage_score(agent_positions),
+            "episode_reward": np.mean(self.episode_rewards) if self.episode_rewards else 0.0,
+            "episode_length": self.episode_steps
+        }
+        
+        return metrics
+
+    def _compute_collision_rate(self) -> float:
+        """Compute collision rate for the current episode.
+        
+        Returns:
+            float: Collision rate (collisions per step)
+        """
+        if self.episode_steps == 0:
+            return 0.0
+        return self.collision_count / self.episode_steps
+
+    def _compute_min_agent_distance(self, positions: np.ndarray) -> float:
+        """Compute minimum distance between any pair of agents.
+        
+        Args:
+            positions (np.ndarray): Array of agent positions
+            
+        Returns:
+            float: Minimum distance between agents
+        """
+        n_agents = len(positions)
+        min_dist = float('inf')
+        
+        for i in range(n_agents):
+            for j in range(i + 1, n_agents):
+                dist = np.linalg.norm(positions[i] - positions[j])
+                min_dist = min(min_dist, dist)
+        
+        return min_dist if min_dist != float('inf') else 0.0
+
+    def _compute_coverage_score(self, positions: np.ndarray) -> float:
+        """Compute coverage score based on agent positions.
+        
+        Args:
+            positions (np.ndarray): Array of agent positions
+            
+        Returns:
+            float: Coverage score (higher is better)
+        """
+        # Define the bounds of the environment
+        env_size = 2.0  # MPE environments typically use [-1, 1] range
+        grid_size = 10  # Number of grid cells for coverage computation
+        
+        # Create grid
+        x = np.linspace(-env_size/2, env_size/2, grid_size)
+        y = np.linspace(-env_size/2, env_size/2, grid_size)
+        grid_points = np.array(np.meshgrid(x, y)).T.reshape(-1, 2)
+        
+        # Compute minimum distance from each grid point to any agent
+        min_distances = np.min([
+            np.linalg.norm(grid_points - pos, axis=1)
+            for pos in positions
+        ], axis=0)
+        
+        # Convert distances to coverage score (using exponential decay)
+        coverage = np.mean(np.exp(-min_distances))
+        
+        return coverage 

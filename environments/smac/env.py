@@ -1,8 +1,7 @@
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Dict, Any, Tuple
 import numpy as np
 from smac.env import StarCraft2Env
 from smac.env.starcraft2.maps import get_map_params
-import numpy.ma as ma
 
 from ..base import MARLEnvironment
 

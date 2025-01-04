@@ -42,8 +42,8 @@ class Buffer:
              rewards: Dict[str, float],
              next_observations: Dict[str, np.ndarray],
              dones: Dict[str, bool],
-             state: Optional[np.ndarray] = None,
-             next_state: Optional[np.ndarray] = None,
+             states: Optional[np.ndarray] = None,
+             next_states: Optional[np.ndarray] = None,
              action_log_probs: Optional[Dict[str, np.ndarray]] = None,
              values: Optional[Dict[str, np.ndarray]] = None):
         """Store a transition/episode in the buffer.
@@ -54,8 +54,8 @@ class Buffer:
             rewards: Rewards received by each agent
             next_observations: Next observations for each agent
             dones: Done flags for each agent
-            state: Global state (optional)
-            next_state: Next global state (optional)
+            states: Global state (optional)
+            next_states: Next global state (optional)
             action_log_probs: Log probabilities of actions (for PPO)
             values: Value estimates (for PPO)
         """
@@ -79,10 +79,10 @@ class Buffer:
         self.next_observations[self.position] = next_observations
         self.dones[self.position] = dones
         
-        if state is not None:
-            self.states[self.position] = state
-        if next_state is not None:
-            self.next_states[self.position] = next_state
+        if states is not None:
+            self.states[self.position] = states
+        if next_states is not None:
+            self.next_states[self.position] = next_states
         
         if self.is_episodic:
             self.action_log_probs[self.position] = action_log_probs
@@ -106,39 +106,26 @@ class Buffer:
         
         # Basic data present in all algorithms
         for i, idx in enumerate(indices):
-            # Process observations and actions for each agent
-            for agent_id in self.observations[idx].keys():
-                # Initialize tensors if first iteration
-                if i == 0:
-                    batch["observations"][agent_id] = torch.zeros(
-                        batch_size, *self.observations[idx][agent_id].shape
-                    )
-                    batch["next_observations"][agent_id] = torch.zeros(
-                        batch_size, *self.next_observations[idx][agent_id].shape
-                    )
-                    batch["actions"][agent_id] = torch.zeros(
-                        batch_size, dtype=torch.int64
-                    )
-                
-                # Fill tensors
-                batch["observations"][agent_id][i] = torch.FloatTensor(
-                    self.observations[idx][agent_id]
-                )
-                batch["next_observations"][agent_id][i] = torch.FloatTensor(
-                    self.next_observations[idx][agent_id]
-                )
-                batch["actions"][agent_id][i] = torch.LongTensor(
-                    [self.actions[idx][agent_id]]
-                )
-            
-            # Process rewards and dones
+            # Initialize tensors if first iteration
             if i == 0:
-                batch["rewards"] = torch.zeros(batch_size, self.n_agents)
-                batch["dones"] = torch.zeros(batch_size, dtype=torch.bool)
+                batch["observations"] = torch.zeros(
+                    batch_size, *self.observations[idx].shape
+                )
+                batch["next_observations"] = torch.zeros(
+                    batch_size, *self.next_observations[idx].shape
+                )
+                batch["actions"] = torch.zeros(
+                    batch_size, *self.actions[idx].shape, dtype=torch.int64
+                )
+                batch["rewards"] = torch.zeros(batch_size, *self.rewards[idx].shape)
+                batch["dones"] = torch.zeros(batch_size, *self.dones[idx].shape, dtype=torch.bool)
             
-            for j, agent_id in enumerate(self.rewards[idx].keys()):
-                batch["rewards"][i, j] = self.rewards[idx][agent_id]
-            batch["dones"][i] = any(self.dones[idx].values())
+            # Fill tensors
+            batch["observations"][i] = torch.FloatTensor(self.observations[idx])
+            batch["next_observations"][i] = torch.FloatTensor(self.next_observations[idx])
+            batch["actions"][i] = torch.LongTensor(self.actions[idx])
+            batch["rewards"][i] = torch.FloatTensor(self.rewards[idx])
+            batch["dones"][i] = torch.BoolTensor(self.dones[idx])
             
             # Process states if present
             if self.states[idx] is not None:
@@ -151,14 +138,13 @@ class Buffer:
             # Process policy-based data if present
             if self.is_episodic:
                 if i == 0:
-                    batch["action_log_probs"] = defaultdict(lambda: torch.zeros(batch_size))
-                    batch["values"] = defaultdict(lambda: torch.zeros(batch_size))
-                    batch["returns"] = torch.zeros(batch_size, self.n_agents)
-                    batch["advantages"] = torch.zeros(batch_size, self.n_agents)
+                    batch["action_log_probs"] = torch.zeros(batch_size, *self.action_log_probs[idx].shape)
+                    batch["values"] = torch.zeros(batch_size, *self.values[idx].shape)
+                    batch["returns"] = torch.zeros(batch_size, *self.returns[idx].shape)
+                    batch["advantages"] = torch.zeros(batch_size, *self.advantages[idx].shape)
                 
-                for agent_id in self.action_log_probs[idx].keys():
-                    batch["action_log_probs"][agent_id][i] = self.action_log_probs[idx][agent_id]
-                    batch["values"][agent_id][i] = self.values[idx][agent_id]
+                batch["action_log_probs"][i] = torch.FloatTensor(self.action_log_probs[idx])
+                batch["values"][i] = torch.FloatTensor(self.values[idx])
                 
                 if self.returns[idx] is not None:
                     batch["returns"][i] = torch.FloatTensor(self.returns[idx])

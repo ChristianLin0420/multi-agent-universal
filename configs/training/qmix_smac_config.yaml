@@ -21,13 +21,18 @@ algorithm:
   lr: 0.001
   target_update_interval: 200
   epsilon: 0.1
+  buffer_size: 5000
+  batch_size: 32
+  min_samples: 1000
 
 # Training configuration
-max_steps: 1000000
-eval_interval: 10000
-save_interval: 50000
-log_interval: 1000
+training:
+  max_episodes: 5000
+  max_steps: 100
+  eval_interval: 5000
+  save_interval: 25000
+  log_interval: 1000
 
 # Logging configuration
 use_wandb: true
-wandb_project: "marl_framework" 
+wandb_project: "multi-agent-universal" 

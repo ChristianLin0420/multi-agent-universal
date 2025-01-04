@@ -1,9 +1,9 @@
 import argparse
 from pathlib import Path
+from typing import Any
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
-import yaml
 import logging
 import sys
 import os
@@ -11,15 +11,16 @@ from datetime import datetime
 import random
 import numpy as np
 import wandb
+import yaml
 
-from marl_framework.utils.config import Config
-from marl_framework.algorithms.qmix.qmix import QMIX
-from marl_framework.algorithms.mappo.mappo import MAPPO
-from marl_framework.environments.smac.env import SMACEnvironment
-from marl_framework.environments.google_football.env import GoogleFootballEnvironment
-from marl_framework.environments.mpe.env import MPEEnvironment
-from marl_framework.training.trainer import Trainer
-from marl_framework.training.distributed.ddp_trainer import DDPTrainer
+from utils.config import Config
+from algorithms.qmix.qmix import QMIX
+from algorithms.mappo.mappo import MAPPO
+from environments.smac.env import SMACEnvironment
+# from environments.google_football.env import GoogleFootballEnvironment
+from environments.mpe.env import MPEEnvironment
+from training.trainer import Trainer
+from training.distributed.ddp_trainer import DDPTrainer
 
 def setup_logging(config: dict, experiment_name: str) -> logging.Logger:
     """Setup logging configuration.
@@ -80,8 +81,8 @@ def setup_environment(config: dict, logger: logging.Logger) -> Any:
     
     if env_type == "smac":
         return SMACEnvironment(env_config)
-    elif env_type == "football":
-        return GoogleFootballEnvironment(env_config)
+    # elif env_type == "football":
+    #     return GoogleFootballEnvironment(env_config)
     elif env_type == "mpe":
         return MPEEnvironment(env_config)
     else:
@@ -118,7 +119,7 @@ def setup_wandb(config: dict, experiment_name: str):
     """
     if config.get("use_wandb", False):
         wandb.init(
-            project=config.get("wandb_project", "marl_framework"),
+            project=config.get("wandb_project", "multi-agent-universal"),
             name=experiment_name,
             config=config,
             dir=str(Path(config.get("output_dir", "experiments")) / experiment_name)
@@ -189,12 +190,24 @@ def train_worker(rank: int, world_size: int, args: argparse.Namespace):
 def main():
     parser = argparse.ArgumentParser(description="Train MARL agents")
     parser.add_argument("--config", type=str, required=True, help="Path to config file")
-    parser.add_argument("--distributed", action="store_true", help="Use distributed training")
+    parser.add_argument("--experiment_name", type=str, required=True, help="Name of the experiment")
+    parser.add_argument("--distributed", type=bool, default=False, help="Use distributed training")
     parser.add_argument("--local_rank", type=int, default=0, help="Local rank for distributed training")
     args = parser.parse_args()
     
     # Load configuration
     config = Config.load(args.config)
+    print("\n" + "="*80)
+    print(f"Configuration for experiment:")
+    print("="*80)
+    print(yaml.dump(config, default_flow_style=False, sort_keys=False))
+    print("="*80 + "\n")
+
+    # Store the config in the experiment directory
+    config_file = Path(config.get("output_dir", "experiments")) / args.experiment_name / "config.yaml"
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_file, 'w') as f:
+        yaml.dump(config, f)
     
     # Set up distributed training if requested
     if args.distributed:

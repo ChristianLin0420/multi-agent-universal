@@ -1,23 +1,50 @@
 # Core dependencies
-torch>=1.9.0
-numpy>=1.19.2
-pyyaml>=5.4.1
-wandb>=0.12.0
-tqdm>=4.62.0
+psutil
+torch
+numpy
+gym
+wandb
+tensorboard
 
 # Environment dependencies
-gym>=0.19.0
-pettingzoo>=1.17.0
-gfootball>=2.10.2
-smac>=1.0.0
+pysc2
+# gfootball
+pettingzoo
 
-# Deployment dependencies
-fastapi>=0.68.0
-uvicorn>=0.15.0
-pydantic>=1.8.2
+# Machine Learning utilities
+scipy
+scikit-learn
+pandas
+
+# Visualization
+matplotlib
+seaborn
+opencv-python
+
+# Deep Learning tools
+# tensorrt
+# onnx
+# onnxruntime
+
+# API and Deployment
+fastapi
+uvicorn
+prometheus-client
+
+# Monitoring and logging
+tqdm
+pyyaml
+python-dotenv
 
 # Testing and development
-pytest>=6.2.5
-black>=21.9b0
-isort>=5.9.3
-flake8>=3.9.2 
+pytest
+black
+flake8
+mypy
+
+# Documentation
+sphinx
+sphinx-rtd-theme
+
+# Optional dependencies
+gputil      # For GPU monitoring 

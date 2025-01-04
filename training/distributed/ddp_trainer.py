@@ -5,8 +5,8 @@ from typing import Dict, Any, Optional
 import os
 
 from ..trainer import Trainer
-from ...algorithms.base import MARLAlgorithm
-from ...environments.base import MARLEnvironment
+from algorithms.base import MARLAlgorithm
+from environments.base import MARLEnvironment
 
 class DDPTrainer(Trainer):
     """Distributed trainer using DistributedDataParallel."""
